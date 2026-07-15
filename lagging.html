@@ -11,7 +11,7 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",-apple-system,sans-serif;background:var(--bg);color:var(--text);}
-  header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:50;}
   header h1{margin:0;font-size:19px;font-weight:700;}
   header .badge{font-size:11.5px;background:rgba(255,255,255,.12);padding:3px 9px;border-radius:20px;color:#dfe6f7;}
   header a.back{margin-left:auto;color:#dfe6f7;font-size:12.5px;text-decoration:none;background:rgba(255,255,255,.12);padding:6px 12px;border-radius:8px;}
@@ -396,7 +396,7 @@ function renderForecast(){
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
         scales: {
-          x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 }, autoSkip: false, callback: function(val, idx){ return idx % 12 === 0 ? this.getLabelForValue(val) : ''; } } },
+          x: { ticks: { maxRotation: 0, minRotation: 0, font: { size: 9 }, autoSkip: false, callback: function(val, idx){ return idx % 12 === 0 ? this.getLabelForValue(val) : ''; } } },
           y: { ticks: { font: { size: 10 } } }
         }
       }
