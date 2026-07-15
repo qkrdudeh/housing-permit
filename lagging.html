@@ -31,8 +31,13 @@
   .table-wrap{overflow:auto;max-height:74vh;border:1px solid var(--border);border-radius:8px;}
   table{border-collapse:collapse;font-size:11px;width:100%;}
   th,td{padding:4px 6px;border:1px solid #eef0f5;text-align:center;white-space:nowrap;}
-  thead tr:first-child th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:600;z-index:3;}
-  thead tr:nth-child(2) th{position:sticky;top:27px;background:var(--navy2);color:#fff;font-weight:600;z-index:2;}
+  #summaryTable thead tr:first-child th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:600;z-index:3;}
+  #summaryTable thead tr:nth-child(2) th{position:sticky;top:27px;background:var(--navy2);color:#fff;font-weight:600;z-index:2;}
+  #curveTable thead th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:600;z-index:3;}
+  #curveTable thead th.pair-th{left:0;z-index:4;width:90px;min-width:90px;}
+  #curveTable thead th.region-th{left:90px;z-index:4;width:60px;min-width:60px;}
+  #curveTable tbody th.pair-th{position:sticky;left:0;z-index:2;width:90px;min-width:90px;}
+  #curveTable tbody th.region-th{position:sticky;left:90px;z-index:1;width:60px;min-width:60px;background:#f6f8fc;}
   tbody th{position:sticky;left:0;background:#f6f8fc;font-weight:700;z-index:1;text-align:left;padding-left:10px;}
   .zero-col{background:#943126 !important;color:#fff;}
   .best-cell{outline:3px solid #c00000;outline-offset:-3px;font-weight:700;}
@@ -93,7 +98,7 @@ function renderSummary(){
       CATS.forEach(cat=>{
         const rec = best[cat] && best[cat][pair] && best[cat][pair][region];
         if (rec && rec.lag!==null){
-          body += `<td>${rec.lag} (r=${rec.r.toFixed(2)})</td>`;
+          body += `<td>${rec.lag}</td>`;
         } else {
           body += '<td>-</td>';
         }
@@ -119,26 +124,27 @@ function renderCatToggle(){
 function renderCurve(){
   const tbl = document.getElementById('curveTable');
   const lags = Array.from({length:maxlag+1}, (_,i)=>i);
-  let row1 = '<tr><th rowspan="2">지역</th>' +
-    pairs.map((p,pi) => `<th colspan="${lags.length}" style="background:${PAIR_COLORS[pi]};">${p}</th>`).join('') + '</tr>';
-  let row2 = '<tr>' + pairs.map(()=> lags.map(l=>`<th class="${l===0?'zero-col':''}">${l}</th>`).join('')).join('') + '</tr>';
-  let thead = `<thead>${row1}${row2}</thead>`;
+  let thead = '<thead><tr><th class="pair-th">페어</th><th class="region-th">지역</th>' +
+    lags.map(l=>`<th class="${l===0?'zero-col':''}">${l}</th>`).join('') + '</tr></thead>';
   let body = '<tbody>';
-  regions.forEach(region=>{
-    body += `<tr><th>${region}</th>`;
-    pairs.forEach((pair,pi)=>{
+  pairs.forEach((pair,pi)=>{
+    regions.forEach((region,ri)=>{
+      body += '<tr>';
+      if (ri===0){
+        body += `<th class="pair-th" rowspan="${regions.length}" style="background:${PAIR_COLORS[pi]};color:#fff;">${pair}</th>`;
+      }
+      body += `<th class="region-th">${region}</th>`;
       const arr = curve[curCat] && curve[curCat][pair] && curve[curCat][pair][region];
       const rec = best[curCat] && best[curCat][pair] && best[curCat][pair][region];
       const bestLag = rec ? rec.lag : null;
-      lags.forEach((l,li)=>{
+      lags.forEach(l=>{
         const r = arr ? arr[l] : null;
         const bg = rColor(r);
         const isBest = (bestLag===l);
-        const edge = (li===0) ? `border-left:2px solid ${PAIR_COLORS[pi]};` : '';
-        body += `<td style="background:${bg};${edge}" class="${isBest?'best-cell':''}">${r!==null&&r!==undefined?r.toFixed(3):''}</td>`;
+        body += `<td style="background:${bg}" class="${isBest?'best-cell':''}">${r!==null&&r!==undefined?r.toFixed(3):''}</td>`;
       });
+      body += '</tr>';
     });
-    body += '</tr>';
   });
   body += '</tbody>';
   tbl.innerHTML = thead + body;
