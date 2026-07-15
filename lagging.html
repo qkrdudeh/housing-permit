@@ -97,7 +97,7 @@ function renderSummary(){
       const rec = best[cat] && best[cat][curPair] && best[cat][curPair][region];
       if (rec && rec.lag!==null){
         const bg = rColor(rec.r);
-        body += `<td style="background:${bg}">${rec.lag}개월<br>(r=${rec.r.toFixed(2)})</td>`;
+        body += `<td style="background:${bg}">${rec.lag} (r=${rec.r.toFixed(2)})</td>`;
       } else {
         body += '<td>-</td>';
       }
