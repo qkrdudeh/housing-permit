@@ -162,7 +162,8 @@ function renderSummary(){
         const lag = effectiveLag(cat, pair, region);
         const ov = isOverridden(cat, pair, region);
         if (lag!==null && lag!==undefined){
-          body += `<td data-cat="${cat}" data-pair="${pair}" data-region="${region}" class="${ov?'override':''}">${lag}</td>`;
+          const restoreHtml = ov ? `<span class="restore-btn" title="r값 기준 원래값으로 복원">↺</span>` : '';
+          body += `<td data-cat="${cat}" data-pair="${pair}" data-region="${region}" class="${ov?'override':''}"><span class="cell-val">${lag}</span>${restoreHtml}</td>`;
         } else {
           body += '<td>-</td>';
         }
@@ -174,7 +175,21 @@ function renderSummary(){
   tbl.innerHTML = thead + body;
 
   tbl.querySelectorAll('td[data-cat]').forEach(td=>{
-    td.addEventListener('click', ()=> startEditCell(td));
+    td.addEventListener('click', (e)=>{
+      if (e.target.classList.contains('restore-btn')) return; // 복원 버튼은 별도 처리
+      startEditCell(td);
+    });
+    const rb = td.querySelector('.restore-btn');
+    if (rb){
+      rb.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const cat = td.dataset.cat, pair = td.dataset.pair, region = td.dataset.region;
+        delete overrides[ovKey(cat,pair,region)];
+        saveOverrides();
+        renderSummary();
+        refreshForecastIfNeeded(cat, pair, region);
+      });
+    }
   });
 }
 
@@ -182,20 +197,11 @@ function startEditCell(td){
   if (td.querySelector('input')) return; // 이미 편집중
   const cat = td.dataset.cat, pair = td.dataset.pair, region = td.dataset.region;
   const cur = effectiveLag(cat, pair, region);
-  const ov = isOverridden(cat, pair, region);
   td.innerHTML = '';
   const input = document.createElement('input');
   input.type = 'number'; input.min = 0; input.max = maxlag; input.value = cur;
   input.className = 'edit-input';
   td.appendChild(input);
-  if (ov){
-    const restore = document.createElement('span');
-    restore.textContent = '↺';
-    restore.className = 'restore-btn';
-    restore.title = 'r값 기준 원래값으로 복원';
-    restore.onclick = (e)=>{ e.stopPropagation(); delete overrides[ovKey(cat,pair,region)]; saveOverrides(); renderSummary(); refreshForecastIfNeeded(cat, pair, region); };
-    td.appendChild(restore);
-  }
   input.focus(); input.select();
   function commit(){
     let v = parseInt(input.value, 10);
