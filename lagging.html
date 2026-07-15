@@ -66,6 +66,9 @@
   .info-panel .item .muted{color:var(--muted);font-size:10.5px;}
   .chart-wrap{position:relative;height:380px;margin-top:10px;}
   .gap-table-wrap{overflow:auto;max-height:260px;border:1px solid var(--border);border-radius:8px;margin-top:12px;}
+  .gap-table-wrap th:first-child{position:sticky;left:0;background:#f6f8fc;z-index:1;text-align:left;padding-left:10px;}
+  .gap-table-wrap thead th{position:sticky;top:0;background:var(--navy2);color:#fff;z-index:2;}
+  .gap-table-wrap thead th:first-child{z-index:3;}
   .gap-table-wrap table{font-size:11.5px;}
   .warn-box{background:#fce4e4;border:1px solid #f3b4b4;color:#7a1f1f;border-radius:8px;padding:8px 12px;font-size:11.5px;margin-top:8px;}
 </style>
@@ -77,6 +80,17 @@
   <a class="back" href="./index.html">← 메인 대시보드로</a>
 </header>
 <main>
+
+  <section>
+    <h2>미래 준공 추정 — 착공-준공 시차 기반</h2>
+    <p class="desc">서머리에서 사용한(수동 수정 시 수정값 우선 적용) 착공-준공 시차를 이용해, 준공_TTM(T) ≈ 착공_TTM(T-시차)로 준공 데이터를 투영합니다. 실선은 실제값, 점선(빨강)은 추정값이며, 실제 준공 데이터가 끝나는 시점 이후로 이어지는 빨간 구간이 새로 추정된 값입니다.</p>
+    <div class="cat-toggle" id="fcCatToggle"></div>
+    <div class="region-pick" id="fcRegionPick"></div>
+    <div class="info-panel" id="fcInfo"></div>
+    <div id="fcWarn"></div>
+    <div class="chart-wrap"><canvas id="fcChart"></canvas></div>
+    <div class="gap-table-wrap"><table id="fcGapTable"></table></div>
+  </section>
 
   <section>
     <h2>서머리 — 유형별·면적별·지역별 최적시차</h2>
@@ -94,17 +108,6 @@
     <div class="cat-toggle" id="catToggle"></div>
     <div class="legend"><span class="bar"></span><span>r = 0.5(흰색) ~ 1.0(초록) · 0.5 미만은 무색 · 0개월 열은 진한 빨강 헤더(동시)</span></div>
     <div class="table-wrap"><table id="curveTable"></table></div>
-  </section>
-
-  <section>
-    <h2>미래 준공 추정 — 착공-준공 시차 기반</h2>
-    <p class="desc">서머리에서 사용한(수동 수정 시 수정값 우선 적용) 착공-준공 시차를 이용해, 준공_TTM(T) ≈ 착공_TTM(T-시차)로 준공 데이터를 투영합니다. 실선은 실제값, 점선(빨강)은 추정값이며, 실제 준공 데이터가 끝나는 시점 이후로 이어지는 빨간 구간이 새로 추정된 값입니다.</p>
-    <div class="cat-toggle" id="fcCatToggle"></div>
-    <div class="region-pick" id="fcRegionPick"></div>
-    <div class="info-panel" id="fcInfo"></div>
-    <div id="fcWarn"></div>
-    <div class="chart-wrap"><canvas id="fcChart"></canvas></div>
-    <div class="gap-table-wrap"><table id="fcGapTable"></table></div>
   </section>
 
 </main>
@@ -393,7 +396,7 @@ function renderForecast(){
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
         scales: {
-          x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 }, autoSkip: true, maxTicksLimit: 24 } },
+          x: { ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 }, autoSkip: false, callback: function(val, idx){ return idx % 12 === 0 ? this.getLabelForValue(val) : ''; } } },
           y: { ticks: { font: { size: 10 } } }
         }
       }
@@ -404,16 +407,20 @@ function renderForecast(){
     if (cw) cw.innerHTML = '<div class="warn-box">차트 라이브러리를 불러오지 못했습니다. 표는 아래에 정상 표시됩니다.</div>';
   }
 
-  // 신규 추정(미래) 구간 표
+  // 신규 추정(미래) 구간 표 — 월을 컬럼으로, 근거월/추정값을 행으로
   const gapTbl = document.getElementById('fcGapTable');
   if (futureCount > 0){
-    let html = '<thead><tr><th>월(미래)</th><th>착공(TTM) 근거월</th><th>준공 추정(TTM)</th></tr></thead><tbody>';
-    for (let T=gapStart; T<=gapEnd; T++){
+    const monthCols = [];
+    for (let T=gapStart; T<=gapEnd; T++) monthCols.push(T);
+    let thead = '<thead><tr><th>구분</th>' + monthCols.map(T=>`<th>${labels[T]}</th>`).join('') + '</tr></thead>';
+    let srcRow = '<tr><th>착공(TTM) 근거월</th>' + monthCols.map(T=>{
       const srcLabel = (T-lag>=0 && T-lag<N) ? PERIODS[T-lag] : '-';
-      html += `<tr><td>${labels[T]}</td><td>${srcLabel}</td><td>${projected[T]!==null?projected[T].toLocaleString():'-'}</td></tr>`;
-    }
-    html += '</tbody>';
-    gapTbl.innerHTML = html;
+      return `<td>${srcLabel}</td>`;
+    }).join('') + '</tr>';
+    let valRow = '<tr><th>준공 추정(TTM)</th>' + monthCols.map(T=>{
+      return `<td>${projected[T]!==null?projected[T].toLocaleString():'-'}</td>`;
+    }).join('') + '</tr>';
+    gapTbl.innerHTML = thead + '<tbody>' + srcRow + valRow + '</tbody>';
   } else {
     gapTbl.innerHTML = '<thead><tr><th>안내</th></tr></thead><tbody><tr><td>이 조합은 시차가 0~수개월로 매우 짧아, 이미 알려진 착공 실적을 넘어서는 미래 구간을 추정할 수 없습니다(착공과 준공이 사실상 동시에 반영됩니다).</td></tr></tbody>';
   }
