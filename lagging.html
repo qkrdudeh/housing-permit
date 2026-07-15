@@ -31,7 +31,8 @@
   .table-wrap{overflow:auto;max-height:74vh;border:1px solid var(--border);border-radius:8px;}
   table{border-collapse:collapse;font-size:11px;width:100%;}
   th,td{padding:4px 6px;border:1px solid #eef0f5;text-align:center;white-space:nowrap;}
-  thead th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:600;z-index:2;}
+  thead tr:first-child th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:600;z-index:3;}
+  thead tr:nth-child(2) th{position:sticky;top:27px;background:var(--navy2);color:#fff;font-weight:600;z-index:2;}
   tbody th{position:sticky;left:0;background:#f6f8fc;font-weight:700;z-index:1;text-align:left;padding-left:10px;}
   .zero-col{background:#943126 !important;color:#fff;}
   .best-cell{outline:3px solid #c00000;outline-offset:-3px;font-weight:700;}
@@ -50,17 +51,14 @@
 
   <section>
     <h2>서머리 — 유형별·면적별·지역별 최적시차</h2>
-    <p class="desc">각 지역×카테고리 조합에서 상관계수(r)가 가장 높은 시차와 그 값입니다. 표본수는 조합별로 상이하나 생략했습니다.</p>
-    <div class="seg" id="summaryPairSeg"></div>
-    <div class="legend"><span class="bar"></span><span>r = 0.5(흰색) ~ 1.0(초록) · 0.5 미만은 무색</span></div>
+    <p class="desc">각 지역×카테고리 조합에서 상관계수(r)가 가장 높은 시차와 그 값입니다. 3개 페어를 한 표에서 비교할 수 있도록 컬럼을 2단(페어 → 유형/면적)으로 구성했습니다. 표본수는 조합별로 상이하나 생략했습니다.</p>
     <div class="table-wrap"><table class="summary-table" id="summaryTable"></table></div>
   </section>
 
   <section>
     <h2>상세 시차곡선 — 카테고리별 지역×시차 r값</h2>
-    <p class="desc">선택한 유형 또는 면적 카테고리에 대해, 지역별로 시차 0~48개월 전 구간의 상관계수를 표시합니다. 굵은 빨간 테두리는 해당 행의 최적(r 최대) 시차 위치입니다.</p>
+    <p class="desc">선택한 유형 또는 면적 카테고리에 대해, 지역별로 시차 0~48개월 전 구간의 상관계수를 표시합니다. 3개 페어를 컬럼 1단(페어)·2단(시차)으로 나눠 한 표에서 비교할 수 있습니다. 굵은 빨간 테두리는 해당 행·페어의 최적(r 최대) 시차 위치입니다.</p>
     <div class="cat-toggle" id="catToggle"></div>
-    <div class="seg" id="curvePairSeg"></div>
     <div class="legend"><span class="bar"></span><span>r = 0.5(흰색) ~ 1.0(초록) · 0.5 미만은 무색 · 0개월 열은 진한 빨강 헤더(동시)</span></div>
     <div class="table-wrap"><table id="curveTable"></table></div>
   </section>
@@ -79,28 +77,27 @@ function rColor(r){
   const c = c0.map((v,i)=>Math.round(v+(c1[i]-v)*t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
+const PAIR_COLORS = ['#1c3157', '#2f6fed', '#6b3fa0'];
 
-// ---------- 서머리 ----------
-let curPair = pairs[0];
-function renderSummarySeg(){
-  const el = document.getElementById('summaryPairSeg');
-  el.innerHTML = pairs.map(p => `<button data-p="${p}" class="${p===curPair?'on':''}">${p}</button>`).join('');
-  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{ curPair=b.dataset.p; renderSummarySeg(); renderSummary(); });
-}
+// ---------- 서머리 (페어 3개를 컬럼 레벨1로 한 표에 표시, 색상 없음) ----------
 function renderSummary(){
   const tbl = document.getElementById('summaryTable');
-  let thead = '<thead><tr><th class="region-hdr">지역</th>' + CATS.map(c=>`<th>${c}</th>`).join('') + '</tr></thead>';
+  let row1 = '<tr><th class="region-hdr" rowspan="2">지역</th>' +
+    pairs.map((p,pi) => `<th colspan="${CATS.length}" style="background:${PAIR_COLORS[pi]};">${p}</th>`).join('') + '</tr>';
+  let row2 = '<tr>' + pairs.map(()=> CATS.map(c=>`<th>${c}</th>`).join('')).join('') + '</tr>';
+  let thead = `<thead>${row1}${row2}</thead>`;
   let body = '<tbody>';
   regions.forEach(region=>{
     body += `<tr><th class="region-hdr">${region}</th>`;
-    CATS.forEach(cat=>{
-      const rec = best[cat] && best[cat][curPair] && best[cat][curPair][region];
-      if (rec && rec.lag!==null){
-        const bg = rColor(rec.r);
-        body += `<td style="background:${bg}">${rec.lag} (r=${rec.r.toFixed(2)})</td>`;
-      } else {
-        body += '<td>-</td>';
-      }
+    pairs.forEach(pair=>{
+      CATS.forEach(cat=>{
+        const rec = best[cat] && best[cat][pair] && best[cat][pair][region];
+        if (rec && rec.lag!==null){
+          body += `<td>${rec.lag} (r=${rec.r.toFixed(2)})</td>`;
+        } else {
+          body += '<td>-</td>';
+        }
+      });
     });
     body += '</tr>';
   });
@@ -108,9 +105,8 @@ function renderSummary(){
   tbl.innerHTML = thead + body;
 }
 
-// ---------- 상세곡선 ----------
+// ---------- 상세곡선 (페어 3개를 컬럼 레벨1로, 시차 0~48을 컬럼 레벨2로) ----------
 let curCat = types[0];
-let curCurvePair = pairs[0];
 function renderCatToggle(){
   const el = document.getElementById('catToggle');
   let html = '<span class="grp-label">유형</span>';
@@ -120,26 +116,27 @@ function renderCatToggle(){
   el.innerHTML = html;
   el.querySelectorAll('button').forEach(b=>b.onclick=()=>{ curCat=b.dataset.c; renderCatToggle(); renderCurve(); });
 }
-function renderCurvePairSeg(){
-  const el = document.getElementById('curvePairSeg');
-  el.innerHTML = pairs.map(p => `<button data-p="${p}" class="${p===curCurvePair?'on':''}">${p}</button>`).join('');
-  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{ curCurvePair=b.dataset.p; renderCurvePairSeg(); renderCurve(); });
-}
 function renderCurve(){
   const tbl = document.getElementById('curveTable');
   const lags = Array.from({length:maxlag+1}, (_,i)=>i);
-  let thead = '<thead><tr><th>지역</th>' + lags.map(l=>`<th class="${l===0?'zero-col':''}">${l}</th>`).join('') + '</tr></thead>';
+  let row1 = '<tr><th rowspan="2">지역</th>' +
+    pairs.map((p,pi) => `<th colspan="${lags.length}" style="background:${PAIR_COLORS[pi]};">${p}</th>`).join('') + '</tr>';
+  let row2 = '<tr>' + pairs.map(()=> lags.map(l=>`<th class="${l===0?'zero-col':''}">${l}</th>`).join('')).join('') + '</tr>';
+  let thead = `<thead>${row1}${row2}</thead>`;
   let body = '<tbody>';
   regions.forEach(region=>{
-    const arr = curve[curCat] && curve[curCat][curCurvePair] && curve[curCat][curCurvePair][region];
-    const rec = best[curCat] && best[curCat][curCurvePair] && best[curCat][curCurvePair][region];
-    const bestLag = rec ? rec.lag : null;
     body += `<tr><th>${region}</th>`;
-    lags.forEach(l=>{
-      const r = arr ? arr[l] : null;
-      const bg = rColor(r);
-      const isBest = (bestLag===l);
-      body += `<td style="background:${bg}" class="${isBest?'best-cell':''}">${r!==null&&r!==undefined?r.toFixed(3):''}</td>`;
+    pairs.forEach((pair,pi)=>{
+      const arr = curve[curCat] && curve[curCat][pair] && curve[curCat][pair][region];
+      const rec = best[curCat] && best[curCat][pair] && best[curCat][pair][region];
+      const bestLag = rec ? rec.lag : null;
+      lags.forEach((l,li)=>{
+        const r = arr ? arr[l] : null;
+        const bg = rColor(r);
+        const isBest = (bestLag===l);
+        const edge = (li===0) ? `border-left:2px solid ${PAIR_COLORS[pi]};` : '';
+        body += `<td style="background:${bg};${edge}" class="${isBest?'best-cell':''}">${r!==null&&r!==undefined?r.toFixed(3):''}</td>`;
+      });
     });
     body += '</tr>';
   });
@@ -147,8 +144,8 @@ function renderCurve(){
   tbl.innerHTML = thead + body;
 }
 
-renderSummarySeg(); renderSummary();
-renderCatToggle(); renderCurvePairSeg(); renderCurve();
+renderSummary();
+renderCatToggle(); renderCurve();
 </script>
 </body>
 </html>
